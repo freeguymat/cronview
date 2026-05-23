@@ -40,7 +40,13 @@ export function createSearchPanel(screen, parent) {
   });
 
   input.on('submit', (value) => {
-    currentResults = searchExpressions(value);
+    const trimmed = value.trim();
+    if (!trimmed) {
+      currentResults = [];
+      renderResults();
+      return;
+    }
+    currentResults = searchExpressions(trimmed);
     renderResults();
     list.focus();
   });
