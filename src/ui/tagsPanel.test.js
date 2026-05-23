@@ -58,3 +58,11 @@ test('addTagToCurrentExpression adds a tag', () => {
   tp.addTagToCurrentExpression('daily');
   expect(getTagsForExpression('0 0 * * *')).toContain('daily');
 });
+
+test('getSelectedTag returns the selected tag content', () => {
+  addTag('0 * * * *', 'hourly');
+  const tp = createTagsPanel(mockScreen, mockParent);
+  tp.refresh('0 * * * *');
+  // getItem is mocked to return { content: 'hourly' }
+  expect(tp.getSelectedTag()).toBe('hourly');
+});
