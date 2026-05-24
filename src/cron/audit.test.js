@@ -49,6 +49,13 @@ test('getRecentEvents returns limited results in reverse order', () => {
   expect(recent[0].expression).toBe('c');
 });
 
+test('getRecentEvents returns all events when limit exceeds log size', () => {
+  auditModule.recordEvent('a', 'view');
+  auditModule.recordEvent('b', 'view');
+  const recent = auditModule.getRecentEvents(10);
+  expect(recent).toHaveLength(2);
+});
+
 test('clearAuditLog empties the log', () => {
   auditModule.recordEvent('* * * * *', 'view');
   auditModule.clearAuditLog();
@@ -63,4 +70,10 @@ test('auditSummary counts actions', () => {
   expect(summary.total).toBe(3);
   expect(summary.byAction.view).toBe(2);
   expect(summary.byAction.export).toBe(1);
+});
+
+test('auditSummary returns zero total for empty log', () => {
+  const summary = auditModule.auditSummary();
+  expect(summary.total).toBe(0);
+  expect(summary.byAction).toEqual({});
 });
