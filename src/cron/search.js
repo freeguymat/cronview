@@ -61,3 +61,23 @@ export function filterByTag(tag) {
     })
     .map(expression => ({ expression, tags: getTagsForExpression(expression) }));
 }
+
+/**
+ * Returns all unique tags across favorites and recent history,
+ * sorted alphabetically. Useful for populating a tag filter UI.
+ */
+export function getAllTags() {
+  const favs = loadFavorites();
+  const history = getRecentExpressions(50);
+  const allExpressions = [
+    ...favs.map(f => f.expression),
+    ...history
+  ];
+  const tagSet = new Set();
+  for (const expr of allExpressions) {
+    for (const tag of getTagsForExpression(expr)) {
+      tagSet.add(tag);
+    }
+  }
+  return [...tagSet].sort();
+}
