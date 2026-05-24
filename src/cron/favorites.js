@@ -57,4 +57,17 @@ function listFavorites() {
   return loadFavorites();
 }
 
-module.exports = { addFavorite, removeFavorite, listFavorites, loadFavorites };
+/**
+ * Update the label of an existing favorite by expression.
+ * Returns { updated: true, entry } on success, or { updated: false, reason } if not found.
+ */
+function updateFavoriteLabel(expression, newLabel) {
+  const favorites = loadFavorites();
+  const entry = favorites.find(f => f.expression === expression);
+  if (!entry) return { updated: false, reason: 'not found' };
+  entry.label = newLabel;
+  saveFavorites(favorites);
+  return { updated: true, entry };
+}
+
+module.exports = { addFavorite, removeFavorite, listFavorites, loadFavorites, updateFavoriteLabel };
