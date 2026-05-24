@@ -33,6 +33,20 @@ describe('buildSchedule', () => {
     expect(result.runs).toHaveLength(5);
     expect(result.timezone).toBe('UTC');
   });
+
+  it('runs are returned as Date objects', () => {
+    const result = buildSchedule('* * * * *', { count: 3 });
+    result.runs.forEach(run => {
+      expect(run).toBeInstanceOf(Date);
+    });
+  });
+
+  it('runs are in ascending order', () => {
+    const result = buildSchedule('* * * * *', { count: 4 });
+    for (let i = 1; i < result.runs.length; i++) {
+      expect(result.runs[i].getTime()).toBeGreaterThanOrEqual(result.runs[i - 1].getTime());
+    }
+  });
 });
 
 describe('findOverlappingRuns', () => {
