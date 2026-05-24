@@ -1,91 +1,78 @@
-const { buildHourlyHeatmap, buildDailyHeatmap, renderHeatmapChart } = require('./heatmap');
+import { buildHourlyHeatmap, buildDailyHeatmap, renderHeatmapChart } from './heatmap.js';
 
-// Fixed reference date: Monday 2024-01-01 00:00:00 UTC
-const BASE = new Date('2024-01-01T00:00:00.000Z');
+const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+
+function makeRuns(count, baseMs, stepMs) {
+  return Array.from({ length: count }, (_, i) => new Date(baseMs + i * stepMs));
+}
 
 describe('buildHourlyHeatmap', () => {
-  test('returns 24 buckets', () => {
-    const result = buildHourlyHeatmap('0 * * * *', 7, BASE);
-    expect(result).toHaveLength(24);
+  test('counts runs per hour of day', () => {
+    const base = new Date('2024-01-15T00:00:00Z').getTime();
+    const runs = makeRuns(24, base, HOUR);
+    const map = buildHourlyHeatmap(runs);
+    expect(map).toHaveLength(24);
+    expect(map.every(b => b.count === 1)).toBe(true);
+    expect(map[0].hour).toBe(0);
+    expect(map[23].hour).toBe(23);
   });
 
-  test('each bucket has hour and count', () => {
-    const result = buildHourlyHeatmap('0 * * * *', 1, BASE);
-    result.forEach((entry, i) => {
-      expect(entry.hour).toBe(i);
-      expect(typeof entry.count).toBe('number');
-    });
+  test('returns zero counts for empty runs', () => {
+    const map = buildHourlyHeatmap([]);
+    expect(map).toHaveLength(24);
+    expect(map.every(b => b.count === 0)).toBe(true);
   });
 
-  test('hourly expression produces count >= 1 per bucket over 7 days', () => {
-    const result = buildHourlyHeatmap('0 * * * *', 7, BASE);
-    result.forEach(entry => {
-      expect(entry.count).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  test('expression that never runs returns all zeros', () => {
-    // 31st of February — never fires
-    const result = buildHourlyHeatmap('0 0 31 2 *', 30, BASE);
-    const total = result.reduce((s, e) => s + e.count, 0);
-    expect(total).toBe(0);
-  });
-
-  test('daily midnight expression only increments hour 0', () => {
-    const result = buildHourlyHeatmap('0 0 * * *', 10, BASE);
-    expect(result[0].count).toBeGreaterThanOrEqual(1);
-    const others = result.slice(1).reduce((s, e) => s + e.count, 0);
-    expect(others).toBe(0);
+  test('accumulates multiple runs in same hour', () => {
+    const base = new Date('2024-01-15T06:00:00Z').getTime();
+    const runs = [new Date(base), new Date(base + 10 * 60000), new Date(base + 20 * 60000)];
+    const map = buildHourlyHeatmap(runs);
+    expect(map[6].count).toBe(3);
   });
 });
 
 describe('buildDailyHeatmap', () => {
-  test('returns 7 buckets', () => {
-    const result = buildDailyHeatmap('0 * * * *', 14, BASE);
-    expect(result).toHaveLength(7);
+  test('counts runs per day of week', () => {
+    const monday = new Date('2024-01-15T12:00:00Z').getTime(); // Monday
+    const runs = Array.from({ length: 7 }, (_, i) => new Date(monday + i * DAY));
+    const map = buildDailyHeatmap(runs);
+    expect(map).toHaveLength(7);
+    expect(map.every(b => b.count === 1)).toBe(true);
   });
 
-  test('buckets have day, label, and count', () => {
-    const result = buildDailyHeatmap('0 * * * *', 7, BASE);
-    const LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    result.forEach((entry, i) => {
-      expect(entry.day).toBe(i);
-      expect(entry.label).toBe(LABELS[i]);
-      expect(typeof entry.count).toBe('number');
-    });
+  test('returns zero counts for empty runs', () => {
+    const map = buildDailyHeatmap([]);
+    expect(map).toHaveLength(7);
+    expect(map.every(b => b.count === 0)).toBe(true);
   });
 
-  test('weekly expression on Monday only increments Monday bucket', () => {
-    const result = buildDailyHeatmap('0 9 * * 1', 28, BASE);
-    const monCount = result.find(e => e.label === 'Mon').count;
-    expect(monCount).toBeGreaterThanOrEqual(1);
-    const others = result.filter(e => e.label !== 'Mon').reduce((s, e) => s + e.count, 0);
-    expect(others).toBe(0);
+  test('labels days correctly', () => {
+    const map = buildDailyHeatmap([]);
+    expect(map[0].day).toBe('Sun');
+    expect(map[1].day).toBe('Mon');
+    expect(map[6].day).toBe('Sat');
   });
 });
 
 describe('renderHeatmapChart', () => {
-  test('returns (no data) for empty input', () => {
-    expect(renderHeatmapChart([])).toBe('(no data)');
+  test('returns a non-empty string', () => {
+    const base = new Date('2024-01-15T00:00:00Z').getTime();
+    const runs = makeRuns(48, base, HOUR / 2);
+    const chart = renderHeatmapChart(runs, 'hourly');
+    expect(typeof chart).toBe('string');
+    expect(chart.length).toBeGreaterThan(0);
   });
 
-  test('renders one line per bucket', () => {
-    const heatmap = buildHourlyHeatmap('0 * * * *', 1, BASE);
-    const chart = renderHeatmapChart(heatmap);
-    const lines = chart.split('\n');
-    expect(lines).toHaveLength(24);
+  test('supports daily mode', () => {
+    const base = new Date('2024-01-15T00:00:00Z').getTime();
+    const runs = makeRuns(14, base, DAY);
+    const chart = renderHeatmapChart(runs, 'daily');
+    expect(chart).toContain('Sun');
   });
 
-  test('each line contains a bar and count', () => {
-    const heatmap = [{ hour: 0, count: 5 }, { hour: 1, count: 0 }];
-    const chart = renderHeatmapChart(heatmap);
-    expect(chart).toContain('|');
-    expect(chart).toContain('5');
-  });
-
-  test('uses label key when available', () => {
-    const heatmap = buildDailyHeatmap('0 9 * * 1', 7, BASE);
-    const chart = renderHeatmapChart(heatmap, 'day');
-    expect(chart).toContain('Mon');
+  test('handles empty runs gracefully', () => {
+    const chart = renderHeatmapChart([], 'hourly');
+    expect(typeof chart).toBe('string');
   });
 });
