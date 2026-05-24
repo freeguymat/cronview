@@ -54,4 +54,17 @@ describe('createRecurrencePanel', () => {
   it('refresh with null expression does not throw', () => {
     expect(() => panel.refresh(null)).not.toThrow();
   });
+
+  it('refresh with undefined expression does not throw', () => {
+    expect(() => panel.refresh(undefined)).not.toThrow();
+  });
+
+  it('calls screen.render on every refresh regardless of expression validity', () => {
+    const { describeRecurrence } = require('../cron/recurrence');
+    describeRecurrence.mockImplementationOnce(() => { throw new Error('fail'); });
+    panel.refresh('bad');
+    panel.refresh('0 9 * * *');
+    // render should have been called at least twice
+    expect(screen.render.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
 });
